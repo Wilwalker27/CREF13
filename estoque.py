@@ -18,42 +18,42 @@ def init_db():
 		with conn:
 			conn.execute(
 				"""
-				CREATE TABLE IF NOT EXISTS equipments (
+				CREATE TABLE IF NOT EXISTS equipamentos (
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
-					name TEXT NOT NULL,
+					equipamento TEXT NOT NULL,
 					tombo TEXT NOT NULL,
-					unit TEXT,
-					sector TEXT,
+					setor TEXT,
+					localizacao TEXT,
 					status TEXT DEFAULT 'Ativo',
-					active INTEGER DEFAULT 1,
-					created_at TEXT DEFAULT (datetime('now'))
+					ativo INTEGER DEFAULT 1,
+					data_criacao TEXT DEFAULT (datetime('now'))
 				)
 				"""
 			)
 			conn.execute(
-				"CREATE UNIQUE INDEX IF NOT EXISTS idx_equip_tombo ON equipments (tombo)"
+				"CREATE UNIQUE INDEX IF NOT EXISTS idx_tombo ON equipamentos (tombo)"
 			)
 			conn.execute(
 				"""
-				CREATE TABLE IF NOT EXISTS movements (
+				CREATE TABLE IF NOT EXISTS movimentacoes (
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
-					equipment_id INTEGER NOT NULL,
-					action TEXT NOT NULL,
-					qty INTEGER DEFAULT 1,
-					from_sector TEXT,
-					to_sector TEXT,
-					note TEXT,
-					created_at TEXT DEFAULT (datetime('now')),
-					FOREIGN KEY (equipment_id) REFERENCES equipments (id)
+					equipamento_id INTEGER NOT NULL,
+					tipo TEXT NOT NULL,
+					quantidade INTEGER DEFAULT 1,
+					setor_origem TEXT,
+					setor_destino TEXT,
+					observacao TEXT,
+					data_movimentacao TEXT DEFAULT (datetime('now')),
+					FOREIGN KEY (equipamento_id) REFERENCES equipamentos (id)
 				)
 				"""
 			)
-			columns = [row["name"] for row in conn.execute("PRAGMA table_info(equipments)")]
-			if "sector" not in columns:
-				conn.execute("ALTER TABLE equipments ADD COLUMN sector TEXT")
+			columns = [row["name"] for row in conn.execute("PRAGMA table_info(equipamentos)")]
+			if "localizacao" not in columns:
+				conn.execute("ALTER TABLE equipamentos ADD COLUMN localizacao TEXT")
 			if "status" not in columns:
-				conn.execute("ALTER TABLE equipments ADD COLUMN status TEXT DEFAULT 'Ativo'")
-			conn.execute("UPDATE equipments SET status = 'Ativo' WHERE status IS NULL OR status = ''")
+				conn.execute("ALTER TABLE equipamentos ADD COLUMN status TEXT DEFAULT 'Ativo'")
+			conn.execute("UPDATE equipamentos SET status = 'Ativo' WHERE status IS NULL OR status = ''")
 
 
 def fetch_all(query, params=None):
@@ -69,123 +69,123 @@ def execute(query, params=None):
 			conn.execute(query, params or [])
 
 
-def get_equipments(active_only=True, sector=None, search=None, status=None):
+def get_equipamentos(ativo_apenas=True, setor=None, busca=None, status=None):
 	where_clauses = []
 	params = []
-	if active_only:
-		where_clauses.append("active = 1")
-	if sector and sector != "Todos":
-		where_clauses.append("COALESCE(sector, '') = ?")
-		params.append("" if sector == "Sem setor" else sector)
+	if ativo_apenas:
+		where_clauses.append("ativo = 1")
+	if setor and setor != "Todos":
+		where_clauses.append("COALESCE(setor, '') = ?")
+		params.append("" if setor == "Sem setor" else setor)
 	if status and status != "Todos":
 		where_clauses.append("COALESCE(status, 'Ativo') = ?")
 		params.append(status)
-	if search:
-		where_clauses.append("(name LIKE ? OR tombo LIKE ?)")
-		params.extend([f"%{search}%", f"%{search}%"])
+	if busca:
+		where_clauses.append("(equipamento LIKE ? OR tombo LIKE ?)")
+		params.extend([f"%{busca}%", f"%{busca}%"])
 	where = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 	return fetch_all(
 		f"""
-		SELECT id, name, tombo, unit, sector, status, active, created_at
-		FROM equipments
+		SELECT id, equipamento, tombo, setor, localizacao, status, ativo, data_criacao
+		FROM equipamentos
 		{where}
-		ORDER BY name
+		ORDER BY equipamento
 		""",
 		params,
 	)
 
 
-def count_by_sector():
+def contar_por_setor():
 	return fetch_all(
 		"""
-		SELECT COALESCE(sector, 'Sem setor') AS sector, COUNT(*) AS total
-		FROM equipments
-		WHERE active = 1
-		GROUP BY COALESCE(sector, 'Sem setor')
-		ORDER BY sector
+		SELECT COALESCE(setor, 'Sem setor') AS setor, COUNT(*) AS total
+		FROM equipamentos
+		WHERE ativo = 1
+		GROUP BY COALESCE(setor, 'Sem setor')
+		ORDER BY setor
 		"""
 	)
 
 
-def count_by_status():
+def contar_por_status():
 	return fetch_all(
 		"""
 		SELECT COALESCE(status, 'Ativo') AS status, COUNT(*) AS total
-		FROM equipments
-		WHERE active = 1
+		FROM equipamentos
+		WHERE ativo = 1
 		GROUP BY COALESCE(status, 'Ativo')
 		ORDER BY status
 		"""
 	)
 
 
-def insert_movement(equipment_id, action, from_sector=None, to_sector=None, note=None, qty=1):
+def registrar_movimentacao(equipamento_id, tipo, setor_origem=None, setor_destino=None, observacao=None, quantidade=1):
 	execute(
 		"""
-		INSERT INTO movements (equipment_id, action, qty, from_sector, to_sector, note)
+		INSERT INTO movimentacoes (equipamento_id, tipo, quantidade, setor_origem, setor_destino, observacao)
 		VALUES (?, ?, ?, ?, ?, ?)
 		""",
-		[equipment_id, action, qty, from_sector, to_sector, note],
+		[equipamento_id, tipo, quantidade, setor_origem, setor_destino, observacao],
 	)
 
 
-def get_movements(limit=200):
+def obter_movimentacoes(limite=200):
 	return fetch_all(
 		"""
-		SELECT m.id, e.name, e.tombo, m.action, m.qty, m.from_sector, m.to_sector, m.note, m.created_at
-		FROM movements m
-		JOIN equipments e ON e.id = m.equipment_id
-		ORDER BY m.created_at DESC
+		SELECT m.id, e.equipamento, e.tombo, m.tipo, m.quantidade, m.setor_origem, m.setor_destino, m.observacao, m.data_movimentacao
+		FROM movimentacoes m
+		JOIN equipamentos e ON e.id = m.equipamento_id
+		ORDER BY m.data_movimentacao DESC
 		LIMIT ?
 		""",
-		[limit],
+		[limite],
 	)
 
 
-def to_csv(rows):
-	if not rows:
+def para_csv(linhas):
+	if not linhas:
 		return ""
 	import csv
 	from io import StringIO
 
 	output = StringIO()
-	writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+	writer = csv.DictWriter(output, fieldnames=list(linhas[0].keys()))
 	writer.writeheader()
-	writer.writerows(rows)
+	writer.writerows(linhas)
 	return output.getvalue()
 
 
 def main():
 	st.set_page_config(page_title="Inventário TI", layout="wide")
-	st.title("Controle de Inventário da TI")
+	st.title("Controle de Inventário de Equipamentos da TI")
 	init_db()
 
-	tabs = st.tabs(["Equipamentos", "Movimentações", "Relatórios"])
+	abas = st.tabs(["Equipamentos", "Movimentações", "Relatórios"])
 
-	with tabs[0]:
+	with abas[0]:
 		st.subheader("Cadastrar equipamento")
-		with st.form("add_equipment", clear_on_submit=True):
+		with st.form("form_cadastro_equipamento", clear_on_submit=True):
 			col1, col2, col3, col4 = st.columns(4)
 			with col1:
-				name = st.text_input("Equipamento")
+				equipamento = st.text_input("Equipamento")
 			with col2:
 				tombo = st.text_input("Tombo")
 			with col3:
-				unit = st.text_input("Unidade")
+				localizacao = st.text_input("Funcionário")
 			with col4:
-				sector = st.text_input("Setor")
-			submitted = st.form_submit_button("Adicionar")
-			if submitted:
-				if not name.strip() or not tombo.strip():
+				setor = st.text_input("Setor")
+			enviado = st.form_submit_button("Adicionar")
+			if enviado:
+				if not equipamento.strip() or not tombo.strip():
 					st.error("Informe equipamento e tombo.")
 				else:
 					try:
 						execute(
 							"""
-							INSERT INTO equipments (name, tombo, unit, sector)
+							INSERT INTO equipamentos (equipamento, tombo, localizacao, setor)
 							VALUES (?, ?, ?, ?)
 							""",
-							[name.strip(), tombo.strip(), unit.strip(), sector.strip()],
+							[equipamento.strip(), tombo.strip(), localizacao.strip(), setor.strip()],
 						)
 						st.success("Equipamento cadastrado.")
 					except sqlite3.IntegrityError:
@@ -194,194 +194,194 @@ def main():
 		st.subheader("Lista de equipamentos")
 		colf1, colf2, colf3, colf4 = st.columns(4)
 		with colf1:
-			search = st.text_input("Buscar por nome ou tombo")
+			busca = st.text_input("Buscar por nome ou tombo")
 		with colf2:
-			sectors = sorted({e.get("sector") or "Sem setor" for e in get_equipments(active_only=False)})
-			sector_filter = st.selectbox("Setor", ["Todos"] + sectors)
+			setores = sorted({e.get("setor") or "Sem setor" for e in get_equipamentos(ativo_apenas=False)})
+			filtro_setor = st.selectbox("Setor", ["Todos"] + setores)
 		with colf3:
-			statuses = sorted({e.get("status") or "Ativo" for e in get_equipments(active_only=False)})
-			status_filter = st.selectbox("Status", ["Todos"] + statuses)
+			status_list = sorted({e.get("status") or "Ativo" for e in get_equipamentos(ativo_apenas=False)})
+			filtro_status = st.selectbox("Status", ["Todos"] + status_list)
 		with colf4:
-			include_inactive = st.checkbox("Incluir inativos", value=False)
-		active_only = not include_inactive
-		equipments = get_equipments(
-			active_only=active_only,
-			sector=sector_filter,
-			search=search.strip(),
-			status=status_filter,
+			incluir_inativos = st.checkbox("Incluir inativos", value=False)
+		ativo_apenas = not incluir_inativos
+		equipamentos = get_equipamentos(
+			ativo_apenas=ativo_apenas,
+			setor=filtro_setor,
+			busca=busca.strip(),
+			status=filtro_status,
 		)
-		st.dataframe(equipments, use_container_width=True)
+		st.dataframe(equipamentos, use_container_width=True)
 
 		st.subheader("Atualizar ou desativar")
-		if equipments:
-			equip_map = {f"{e['name']} ({e['tombo']})": e for e in equipments}
-			choice = st.selectbox("Equipamento", list(equip_map.keys()))
-			selected = equip_map[choice]
-			statuses = ["Ativo", "Em manutenção", "Quebrado", "Baixado", "Devolvido"]
-			current_status = selected.get("status") or "Ativo"
-			if current_status not in statuses:
-				statuses = [current_status] + statuses
+		if equipamentos:
+			mapa_equip = {f"{e['equipamento']} ({e['tombo']})": e for e in equipamentos}
+			escolha = st.selectbox("Equipamento", list(mapa_equip.keys()))
+			selecionado = mapa_equip[escolha]
+			status_opcoes = ["Ativo", "Em manutenção", "Quebrado", "Baixado", "Devolvido"]
+			status_atual = selecionado.get("status") or "Ativo"
+			if status_atual not in status_opcoes:
+				status_opcoes = [status_atual] + status_opcoes
 			col1, col2, col3, col4 = st.columns(4)
 			with col1:
-				new_name = st.text_input("Equipamento", value=selected.get("name") or "")
+				novo_equipamento = st.text_input("Equipamento", value=selecionado.get("equipamento") or "")
 			with col2:
-				new_unit = st.text_input("Unidade", value=selected.get("unit") or "")
+				nova_localizacao = st.text_input("Localização", value=selecionado.get("localizacao") or "")
 			with col3:
-				new_sector = st.text_input("Setor", value=selected.get("sector") or "")
+				novo_setor = st.text_input("Setor", value=selecionado.get("setor") or "")
 			with col4:
-				new_status = st.selectbox("Status", statuses, index=statuses.index(current_status))
+				novo_status = st.selectbox("Status", status_opcoes, index=status_opcoes.index(status_atual))
 			col5, col6 = st.columns(2)
 			with col5:
 				if st.button("Atualizar"):
-					new_active = 0 if new_status in ("Baixado", "Devolvido") else 1
+					novo_ativo = 0 if novo_status in ("Baixado", "Devolvido") else 1
 					execute(
 						"""
-						UPDATE equipments
-						SET name = ?, unit = ?, sector = ?, status = ?, active = ?
+						UPDATE equipamentos
+						SET equipamento = ?, localizacao = ?, setor = ?, status = ?, ativo = ?
 						WHERE id = ?
 						""",
 						[
-							new_name.strip(),
-							new_unit.strip(),
-							new_sector.strip(),
-							new_status,
-							new_active,
-							selected["id"],
+							novo_equipamento.strip(),
+							nova_localizacao.strip(),
+							novo_setor.strip(),
+							novo_status,
+							novo_ativo,
+							selecionado["id"],
 						],
 					)
 					st.success("Equipamento atualizado.")
 			with col6:
 				if st.button("Desativar"):
-					execute("UPDATE equipments SET active = 0 WHERE id = ?", [selected["id"]])
+					execute("UPDATE equipamentos SET ativo = 0 WHERE id = ?", [selecionado["id"]])
 					st.warning("Equipamento desativado.")
 		else:
 			st.info("Cadastre um equipamento para começar.")
 
-	with tabs[1]:
+	with abas[1]:
 		st.subheader("Registrar movimentação")
-		equipments_all = get_equipments(active_only=False)
-		if not equipments_all:
+		equipamentos_todos = get_equipamentos(ativo_apenas=False)
+		if not equipamentos_todos:
 			st.info("Cadastre um equipamento para começar.")
 		else:
-			equip_map = {f"{e['name']} ({e['tombo']})": e for e in equipments_all}
-			with st.form("movement_form", clear_on_submit=True):
+			mapa_equip = {f"{e['equipamento']} ({e['tombo']})": e for e in equipamentos_todos}
+			with st.form("form_movimentacao", clear_on_submit=True):
 				col1, col2, col3, col4 = st.columns(4)
 				with col1:
-					choice = st.selectbox("Equipamento", list(equip_map.keys()))
+					escolha = st.selectbox("Equipamento", list(mapa_equip.keys()))
 				with col2:
-					action = st.selectbox(
+					tipo = st.selectbox(
 						"Tipo",
 						["Entrada", "Transferência", "Quebra", "Manutenção", "Baixa", "Devolução", "Retorno"],
 					)
 				with col3:
-					qty = st.number_input("Quantidade", min_value=1, step=1, value=1)
+					quantidade = st.number_input("Quantidade", min_value=1, step=1, value=1)
 				with col4:
-					note = st.text_input("Observação")
-				new_sector = ""
-				if action == "Transferência":
-					new_sector = st.text_input("Novo setor")
-				submitted = st.form_submit_button("Registrar")
-				if submitted:
-					selected = equip_map[choice]
-					from_sector = selected.get("sector")
-					to_sector = from_sector
-					new_status = selected.get("status") or "Ativo"
-					new_active = selected.get("active")
-					if action == "Transferência" and not new_sector.strip():
+					observacao = st.text_input("Observação")
+				novo_setor = ""
+				if tipo == "Transferência":
+					novo_setor = st.text_input("Novo setor")
+				enviado = st.form_submit_button("Registrar")
+				if enviado:
+					selecionado = mapa_equip[escolha]
+					setor_origem = selecionado.get("setor")
+					setor_destino = setor_origem
+					novo_status = selecionado.get("status") or "Ativo"
+					novo_ativo = selecionado.get("ativo")
+					if tipo == "Transferência" and not novo_setor.strip():
 						st.error("Informe o novo setor para transferência.")
 						st.stop()
-					if action == "Transferência":
-						to_sector = new_sector.strip()
-					if action == "Quebra":
-						new_status = "Quebrado"
-					if action == "Manutenção":
-						new_status = "Em manutenção"
-					if action == "Baixa":
-						new_status = "Baixado"
-						new_active = 0
-					if action == "Devolução":
-						new_status = "Devolvido"
-						new_active = 0
-					if action in ("Entrada", "Retorno"):
-						new_status = "Ativo"
-						new_active = 1
+					if tipo == "Transferência":
+						setor_destino = novo_setor.strip()
+					if tipo == "Quebra":
+						novo_status = "Quebrado"
+					if tipo == "Manutenção":
+						novo_status = "Em manutenção"
+					if tipo == "Baixa":
+						novo_status = "Baixado"
+						novo_ativo = 0
+					if tipo == "Devolução":
+						novo_status = "Devolvido"
+						novo_ativo = 0
+					if tipo in ("Entrada", "Retorno"):
+						novo_status = "Ativo"
+						novo_ativo = 1
 					execute(
 						"""
-						UPDATE equipments
-						SET sector = ?, status = ?, active = ?
+						UPDATE equipamentos
+						SET setor = ?, status = ?, ativo = ?
 						WHERE id = ?
 						""",
-						[to_sector, new_status, new_active, selected["id"]],
+						[setor_destino, novo_status, novo_ativo, selecionado["id"]],
 					)
-					insert_movement(
-						selected["id"],
-						action,
-						from_sector=from_sector,
-						to_sector=to_sector,
-						note=note.strip(),
-						qty=qty,
+					registrar_movimentacao(
+						selecionado["id"],
+						tipo,
+						setor_origem=setor_origem,
+						setor_destino=setor_destino,
+						observacao=observacao.strip(),
+						quantidade=quantidade,
 					)
 					st.success("Movimentação registrada.")
 
 		st.subheader("Últimas movimentações")
-		movements = get_movements(limit=200)
-		st.dataframe(movements, use_container_width=True)
+		movimentacoes = obter_movimentacoes(limite=200)
+		st.dataframe(movimentacoes, use_container_width=True)
 
-	with tabs[2]:
+	with abas[2]:
 		st.subheader("Resumo por setor")
-		sector_counts = count_by_sector()
-		total = sum(s["total"] for s in sector_counts) if sector_counts else 0
+		contagem_setor = contar_por_setor()
+		total = sum(s["total"] for s in contagem_setor) if contagem_setor else 0
 		st.metric("Total de equipamentos", total)
-		st.dataframe(sector_counts, use_container_width=True)
+		st.dataframe(contagem_setor, use_container_width=True)
 
 		st.subheader("Resumo por status")
-		status_counts = count_by_status()
-		st.dataframe(status_counts, use_container_width=True)
+		contagem_status = contar_por_status()
+		st.dataframe(contagem_status, use_container_width=True)
 
-		st.subheader("Tombos por setor")
-		sector_list = [s["sector"] for s in sector_counts] or ["Sem setor"]
-		selected_sector = st.selectbox("Setor", sector_list)
-		equipments = get_equipments(active_only=True, sector=selected_sector)
-		st.dataframe(equipments, use_container_width=True)
+		st.subheader("Equipamentos por setor")
+		lista_setores = [s["setor"] for s in contagem_setor] or ["Sem setor"]
+		setor_selecionado = st.selectbox("Setor", lista_setores)
+		equipamentos = get_equipamentos(ativo_apenas=True, setor=setor_selecionado)
+		st.dataframe(equipamentos, use_container_width=True)
 
 		st.subheader("Exportar relatórios")
-		report_equipments = [
+		relatorio_equipamentos = [
 			{
-				"Equipamento": e["name"],
+				"Equipamento": e["equipamento"],
 				"Tombo": e["tombo"],
-				"Setor": e.get("sector") or "",
-				"Unidade": e.get("unit") or "",
+				"Setor": e.get("setor") or "",
+				"Localização": e.get("localizacao") or "",
 				"Status": e.get("status") or "Ativo",
-				"Ativo": "Sim" if e.get("active") else "Não",
-				"Data cadastro": e.get("created_at") or "",
+				"Ativo": "Sim" if e.get("ativo") else "Não",
+				"Data de criação": e.get("data_criacao") or "",
 			}
-			for e in get_equipments(active_only=False)
+			for e in get_equipamentos(ativo_apenas=False)
 		]
-		report_movements = [
+		relatorio_movimentacoes = [
 			{
-				"Equipamento": m["name"],
+				"Equipamento": m["equipamento"],
 				"Tombo": m["tombo"],
-				"Movimentação": m["action"],
-				"Quantidade": m["qty"],
-				"Setor origem": m.get("from_sector") or "",
-				"Setor destino": m.get("to_sector") or "",
-				"Observação": m.get("note") or "",
-				"Data": m.get("created_at") or "",
+				"Tipo": m["tipo"],
+				"Quantidade": m["quantidade"],
+				"Setor origem": m.get("setor_origem") or "",
+				"Setor destino": m.get("setor_destino") or "",
+				"Observação": m.get("observacao") or "",
+				"Data": m.get("data_movimentacao") or "",
 			}
-			for m in get_movements(limit=1000)
+			for m in obter_movimentacoes(limite=1000)
 		]
 		colr1, colr2 = st.columns(2)
 		with colr1:
 			st.download_button(
 				"Baixar equipamentos (CSV)",
-				data=to_csv(report_equipments),
+				data=para_csv(relatorio_equipamentos),
 				file_name="relatorio_equipamentos.csv",
 				mime="text/csv",
 			)
 		with colr2:
 			st.download_button(
 				"Baixar movimentações (CSV)",
-				data=to_csv(report_movements),
+				data=para_csv(relatorio_movimentacoes),
 				file_name="relatorio_movimentacoes.csv",
 				mime="text/csv",
 			)
