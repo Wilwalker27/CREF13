@@ -120,9 +120,11 @@ def main():
                 if enviado:
                     ok, mensagem = services.cadastrar_equipamento(
                         equipamento, tombo, localizacao, setor
+                        
                     )
                     if ok:
                         st.success(mensagem)
+                        st.rerun()  # Atualiza a página para mostrar o novo equipamento
                     else: 
                         st.error(mensagem)
             
