@@ -3,7 +3,6 @@ import services
 import csv
 from io import StringIO
 
-
 # =========================
 # Utils
 # =========================
@@ -27,7 +26,7 @@ def main():
         layout="wide",
     )
 
-    # CSS leve para melhorar visual
+    # CSS
     st.markdown(
         """
         <style>
@@ -122,7 +121,11 @@ def main():
                     ok, mensagem = services.cadastrar_equipamento(
                         equipamento, tombo, localizacao, setor
                     )
-                    st.success(mensagem) if ok else st.error(mensagem)
+                    if ok:
+                        st.success(mensagem)
+                    else: 
+                        st.error(mensagem)
+            
 
         # ---------- LISTA ----------
         with st.container(border=True):

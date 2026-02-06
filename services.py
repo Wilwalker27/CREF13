@@ -1,5 +1,4 @@
 import sqlite3
-
 import data_access
 
 
@@ -37,7 +36,7 @@ def cadastrar_equipamento(equipamento, tombo, localizacao, setor):
 			INSERT INTO equipamentos (equipamento, tombo, localizacao, setor)
 			VALUES (?, ?, ?, ?)
 			""",
-			[equipamento.strip(), tombo.strip(), localizacao.strip(), setor.strip()],
+			[equipamento.strip(), tombo.strip(), localizacao.strip(), setor.strip()],	
 		)
 		return True, "Equipamento cadastrado."
 	except sqlite3.IntegrityError:
