@@ -81,6 +81,9 @@ def main():
             busca=busca.strip(),
             status=filtro_status,
         )
+        equipamentos_view = [
+            {**e, "ativo": "Sim" if e.get("ativo") else "NÃ£o"} for e in equipamentos
+        ]
 
         # ---------- MÉTRICAS ----------
         contagem_status = services.contar_por_status()
@@ -133,7 +136,7 @@ def main():
         with st.container(border=True):
             st.subheader("📋 Lista de equipamentos")
             st.dataframe(
-                equipamentos,
+                equipamentos_view,
                 use_container_width=True,
                 hide_index=True,
                 height=450,
@@ -188,8 +191,11 @@ def main():
                             novo_setor,
                             novo_status,
                         )
-                        st.success(msg) if ok else st.error(msg)
-
+                        if ok:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
                 with colb2:
                     if st.button(
                         "Baixar equipamento",
@@ -216,7 +222,7 @@ def main():
             }
 
             with st.form("form_movimentacao", clear_on_submit=True):
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
                 with col1:
                     escolha = st.selectbox("Equipamento", list(mapa_equip.keys()))
                 with col2:
@@ -232,10 +238,6 @@ def main():
                             "Retorno",
                         ],
                     )
-                with col3:
-                    quantidade = st.number_input(
-                        "Quantidade", min_value=1, step=1, value=1
-                    )
 
                 observacao = st.text_input("Observação")
                 novo_setor = (
@@ -250,11 +252,16 @@ def main():
                     ok, msg = services.registrar_movimentacao(
                         mapa_equip[escolha],
                         tipo,
-                        quantidade,
+                        1,
                         observacao,
                         novo_setor=novo_setor,
                     )
-                    st.success(msg) if ok else st.error(msg)
+                    if ok: 
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)  # Atualiza a página para mostrar a nova movimentação
+                    
 
         st.subheader("📜 Últimas movimentações")
         st.dataframe(

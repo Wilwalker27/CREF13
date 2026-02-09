@@ -1,4 +1,6 @@
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from contextlib import closing
 
 
@@ -9,6 +11,9 @@ def get_conn():
 	conn = sqlite3.connect(DB_PATH)
 	conn.row_factory = sqlite3.Row
 	return conn
+
+def dtc_now():
+	return datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat()
 
 
 def init_db():
@@ -24,7 +29,7 @@ def init_db():
 					localizacao TEXT,
 					status TEXT DEFAULT 'Ativo',
 					ativo INTEGER DEFAULT 1,
-					data_criacao TEXT DEFAULT (datetime('now'))
+					data_criacao TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 				)
 				"""
 			)

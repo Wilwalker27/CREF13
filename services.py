@@ -84,9 +84,12 @@ def registrar_movimentacao(selecionado, tipo, quantidade, observacao, novo_setor
 	if tipo == "Baixa":
 		novo_status = "Baixado"
 		novo_ativo = 0
+		setor_destino = "TI"
 	if tipo == "Devolução":
-		novo_status = "Devolvido"
-		novo_ativo = 0
+		# Devolução volta o equipamento para o inventário da TI
+		novo_status = "Ativo"
+		novo_ativo = 1
+		setor_destino = "TI"
 	if tipo in ("Entrada", "Retorno"):
 		novo_status = "Ativo"
 		novo_ativo = 1
