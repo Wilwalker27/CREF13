@@ -1,6 +1,8 @@
 import streamlit as st
 import services
 import csv
+import os
+import hmac
 from io import StringIO
 
 # =========================
@@ -15,7 +17,88 @@ def para_csv(linhas):
     writer.writerows(linhas)
     return output.getvalue()
 
+def check_password():
+    if "auth_ok" not in st.session_state:
+        st.session_state.auth_ok = False
+    if "auth_user" not in st.session_state:
+        st.session_state.auth_user = ""
 
+    if st.session_state.auth_ok:
+        return True
+
+    app_password = st.secrets.get("APP_PASSWORD") or os.getenv("APP_PASSWORD", "")
+    if not app_password:
+        st.error("Defina APP_PASSWORD no st.secrets ou como variavel de ambiente.")
+        return False
+
+    st.markdown(
+        """
+        <style>
+            # header { visibility: hidden; height: 0; }
+            # #MainMenu { visibility: hidden; height: 0; }
+            # footer { visibility: hidden; height: 0; }
+            # div[data-testid="stDecoration"] { display: none; }
+            # div[data-testid="stToolbar"] { display: none; }
+            # .main { background: linear-gradient(180deg, #f4f6f9 0%, #eef2f6 100%); }
+            # .block-container { padding-top: 0.6rem; }
+            .login-wrap {
+                max-width: 520px;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1px solid #e6e9ef;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+                border-radius: 14px;
+                padding: 2rem 2.2rem;
+            }
+            .login-title {
+                font-size: 1.4rem;
+                font-weight: 700;
+                color: #1f2a37;
+                margin-bottom: 0.4rem;
+            }
+            .login-sub {
+                color: #5f6c7b;
+                margin-bottom: 1.2rem;
+            }
+            .logo-space {
+                margin-top: 1.6rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.6rem 0 0.2rem 0;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    left, center, right = st.columns([1, 2, 1])
+    with center:
+        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
+        st.markdown('<div class="login-title">Acesso restrito</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="login-sub">Selecione o usuário e informe a senha.</div>',
+            unsafe_allow_html=True,
+        )
+        usuario = st.selectbox(
+            "Usuário",
+            ["Marcio Santana", "William Ferreira"],
+            index=0,
+        )
+        senha = st.text_input("Senha", type="password")
+        if st.button("Entrar", use_container_width=True):
+            if hmac.compare_digest(senha, app_password):
+                st.session_state.auth_ok = True
+                st.session_state.auth_user = usuario
+                st.rerun()
+            else:
+                st.error("Senha invalida.")
+
+        st.markdown('<div class="logo-space">', unsafe_allow_html=True)
+        st.image("assets/logo.png", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    return False
 # =========================
 # App
 # =========================
@@ -25,6 +108,14 @@ def main():
         page_icon="🖥️",
         layout="wide",
     )
+
+    if not check_password():
+        return
+
+    with st.sidebar:
+        if st.button("Sair"):
+            st.session_state.auth_ok = False
+            st.rerun()
 
     # CSS
     st.markdown(
