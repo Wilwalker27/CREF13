@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/common.js" defer></script>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo-wrap">
+            <img class="logo" src="/img/logocref.png" alt="CREF 13/BA" />
+          </div>
+          <div class="brand-text">
+            <h1>{{ title }}</h1>
+            <p>Painel de chamados - Conselho Regional de Educação Física</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="badge">Serviço Público Federal</div>
+        </div>
+      </header>
+      <main class="page">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>

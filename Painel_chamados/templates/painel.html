@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="/static/panel.js" defer></script>
+{% endblock %}
+{% block content %}
+<section class="panel-hero card">
+  <div class="panel-grid">
+    <div class="panel-current">
+      <div class="panel-title">
+        <span class="eyebrow">Chamada atual</span>
+        <h2>Profissional chamado</h2>
+      </div>
+      <div class="stat">
+        <div class="label">Nome</div>
+        <div id="current-name" class="value">-</div>
+      </div>
+      <div class="stat">
+        <div class="label">Registro</div>
+        <div id="current-reg" class="value">-</div>
+      </div>
+      <div class="stat">
+        <div class="label">Destino</div>
+        <div id="current-dest" class="value">Aguardando</div>
+      </div>
+    </div>
+    <div class="panel-history">
+      <div class="panel-title">
+        <span class="eyebrow">Ultimas chamadas</span>
+        <h2>Histódrico recente</h2>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

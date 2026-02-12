@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="/static/reception.js" defer></script>
+{% endblock %}
+{% block content %}
+<section class="page-grid">
+  <div class="card1">
+    <div class="section-head">
+      <span class="eyebrow">Recepção</span>
+      <h2>Novo atendimento</h2>
+      <p>Cadastre o profissional para entrar na fila de chamada.</p>
+    </div>
+    <form id="reception-form" class="form-grid">
+      <div>
+        <label for="name">Nome</label>
+        <input id="name" name="name" type="text" required />
+      </div>
+      <div>
+        <label for="registration">Registro</label>
+        <input id="registration" name="registration" type="text" required />
+      </div>
+      <div class="form-actions">
+        <button id="submit-btn" type="submit">Cadastrar</button>
+        <button id="cancel-btn" type="button" class="button-secondary">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <span class="eyebrow">Fila</span>
+      <h2>Aguardando</h2>
+      <p>Profissionais registrados aguardando atendimento.</p>
+    </div>
+    <div id="queue-list" class="table"></div>
+  </div>
+</section>
+{% endblock %}

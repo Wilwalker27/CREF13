@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="/static/negotiation.js" defer></script>
+{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="section-head">
+    <span class="eyebrow">Negociação</span>
+    <h2>Fila de aguardando</h2>
+    <p>Selecione o destino e confirme a chamada.</p>
+  </div>
+  <div id="queue-list" class="table"></div>
+</section>
+{% endblock %}
