@@ -45,6 +45,8 @@ def cadastrar_equipamento(equipamento, tombo, localizacao, setor):
 
 def atualizar_equipamento(equipamento_id, equipamento, localizacao, setor, status):
 	novo_ativo = 0 if status in ("Baixado", "Devolvido") else 1
+	localizacao_limpa = "" if status in ("Baixado", "Devolvido") else localizacao.strip()
+	setor_limpo = "TI" if status in ("Baixado", "Devolvido") else setor.strip()
 	data_access.execute(
 		"""
 		UPDATE equipamentos
@@ -53,8 +55,8 @@ def atualizar_equipamento(equipamento_id, equipamento, localizacao, setor, statu
 		""",
 		[
 			equipamento.strip(),
-			localizacao.strip(),
-			setor.strip(),
+			localizacao_limpa,
+			setor_limpo,
 			status,
 			novo_ativo,
 			equipamento_id,
@@ -68,15 +70,19 @@ def desativar_equipamento(equipamento_id):
 	return True, "Equipamento desativado."
 
 
-def registrar_movimentacao(selecionado, tipo, quantidade, observacao, novo_setor=""):
+def registrar_movimentacao(selecionado, tipo, quantidade, observacao, novo_setor="", nova_localizacao=""):
 	setor_origem = selecionado.get("setor")
 	setor_destino = setor_origem
+	localizacao_origem = selecionado.get("localizacao")
+	localizacao_destino = localizacao_origem
 	novo_status = selecionado.get("status") or "Ativo"
 	novo_ativo = selecionado.get("ativo")
 	if tipo == "Transferência" and not novo_setor.strip():
 		return False, "Informe o novo setor para transferência."
 	if tipo == "Transferência":
 		setor_destino = novo_setor.strip()
+		if nova_localizacao.strip():
+			localizacao_destino = nova_localizacao.strip()
 	if tipo == "Quebra":
 		novo_status = "Quebrado"
 	if tipo == "Manutenção":
@@ -85,6 +91,7 @@ def registrar_movimentacao(selecionado, tipo, quantidade, observacao, novo_setor
 		novo_status = "Baixado"
 		novo_ativo = 0
 		setor_destino = "TI"
+		localizacao_destino = ""
 	if tipo == "Devolução":
 		# Devolução volta o equipamento para o inventário da TI
 		novo_status = "Ativo"
@@ -96,16 +103,18 @@ def registrar_movimentacao(selecionado, tipo, quantidade, observacao, novo_setor
 	data_access.execute(
 		"""
 		UPDATE equipamentos
-		SET setor = ?, status = ?, ativo = ?
+		SET setor = ?, localizacao = ?, status = ?, ativo = ?
 		WHERE id = ?
 		""",
-		[setor_destino, novo_status, novo_ativo, selecionado["id"]],
+		[setor_destino, localizacao_destino, novo_status, novo_ativo, selecionado["id"]],
 	)
 	data_access.registrar_movimentacao(
 		selecionado["id"],
 		tipo,
 		setor_origem=setor_origem,
 		setor_destino=setor_destino,
+		localizacao_origem=localizacao_origem,
+		localizacao_destino=localizacao_destino,
 		observacao=observacao.strip(),
 		quantidade=quantidade,
 	)

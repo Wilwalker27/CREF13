@@ -58,6 +58,12 @@ def init_db():
 				conn.execute("ALTER TABLE equipamentos ADD COLUMN status TEXT DEFAULT 'Ativo'")
 			conn.execute("UPDATE equipamentos SET status = 'Ativo' WHERE status IS NULL OR status = ''")
 
+			columns_mov = [row["name"] for row in conn.execute("PRAGMA table_info(movimentacoes)")]
+			if "localizacao_origem" not in columns_mov:
+				conn.execute("ALTER TABLE movimentacoes ADD COLUMN localizacao_origem TEXT")
+			if "localizacao_destino" not in columns_mov:
+				conn.execute("ALTER TABLE movimentacoes ADD COLUMN localizacao_destino TEXT")
+
 
 def fetch_all(query, params=None):
 	with closing(get_conn()) as conn:
@@ -103,7 +109,6 @@ def contar_por_setor():
 		"""
 		SELECT COALESCE(setor, 'Sem setor') AS setor, COUNT(*) AS total
 		FROM equipamentos
-		WHERE ativo = 1
 		GROUP BY COALESCE(setor, 'Sem setor')
 		ORDER BY setor
 		"""
@@ -122,20 +127,20 @@ def contar_por_status():
 	)
 
 
-def registrar_movimentacao(equipamento_id, tipo, setor_origem=None, setor_destino=None, observacao=None, quantidade=1):
+def registrar_movimentacao(equipamento_id, tipo, setor_origem=None, setor_destino=None, localizacao_origem=None, localizacao_destino=None, observacao=None, quantidade=1):
 	execute(
 		"""
-		INSERT INTO movimentacoes (equipamento_id, tipo, quantidade, setor_origem, setor_destino, observacao)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO movimentacoes (equipamento_id, tipo, quantidade, setor_origem, setor_destino, localizacao_origem, localizacao_destino, observacao)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		""",
-		[equipamento_id, tipo, quantidade, setor_origem, setor_destino, observacao],
+		[equipamento_id, tipo, quantidade, setor_origem, setor_destino, localizacao_origem, localizacao_destino, observacao],
 	)
 
 
 def obter_movimentacoes(limite=200):
 	return fetch_all(
 		"""
-		SELECT m.id, e.equipamento, e.tombo, m.tipo, m.quantidade, m.setor_origem, m.setor_destino, m.observacao, m.data_movimentacao
+		SELECT m.id, e.equipamento, e.tombo, m.tipo, m.quantidade, m.setor_origem, m.setor_destino, m.localizacao_origem, m.localizacao_destino, m.observacao, m.data_movimentacao
 		FROM movimentacoes m
 		JOIN equipamentos e ON e.id = m.equipamento_id
 		ORDER BY m.data_movimentacao DESC
