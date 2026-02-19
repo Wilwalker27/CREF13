@@ -3,10 +3,12 @@ import services
 import csv
 import os
 import hmac
+from datetime import datetime
 from io import StringIO
+from zoneinfo import ZoneInfo
 
 # =========================
-# Utils
+# Funções auxiliares
 # =========================
 def para_csv(linhas):
     if not linhas:
@@ -16,6 +18,22 @@ def para_csv(linhas):
     writer.writeheader()
     writer.writerows(linhas)
     return output.getvalue()
+
+
+def formatar_data_iso(valor):
+    if not valor:
+        return ""
+    try:
+        if "T" in valor:
+            dt = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        else:
+            dt = datetime.fromisoformat(valor)
+        if dt.tzinfo is None:
+            return dt.strftime("%d/%m/%Y %H:%M")
+        local = dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+        return local.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return valor
 
 def check_password():
     if "auth_ok" not in st.session_state:
@@ -34,38 +52,25 @@ def check_password():
     st.markdown(
         """
         <style>
-            # header { visibility: hidden; height: 0; }
-            # #MainMenu { visibility: hidden; height: 0; }
-            # footer { visibility: hidden; height: 0; }
-            # div[data-testid="stDecoration"] { display: none; }
-            # div[data-testid="stToolbar"] { display: none; }
-            # .main { background: linear-gradient(180deg, #f4f6f9 0%, #eef2f6 100%); }
-            # .block-container { padding-top: 0.6rem; }
-            .login-wrap {
-                max-width: 520px;
-                margin: 0 auto;
+            header, footer { visibility: hidden; height: 0; }
+            #MainMenu { visibility: hidden; height: 0; }
+            div[data-testid="stDecoration"],
+            div[data-testid="stToolbar"],
+            div[data-testid="stStatusWidget"],
+            div[data-testid="stHeader"] { display: none !important; }
+            .stApp, .stAppViewContainer, .main {
+                background: #ffffff;
+            }
+            .block-container {
+                padding-top: 1.2rem !important;
+                padding-bottom: 2rem !important;
+            }
+            div[data-testid="stContainer"] {
                 background: #ffffff;
                 border: 1px solid #e6e9ef;
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
                 border-radius: 14px;
-                padding: 2rem 2.2rem;
-            }
-            .login-title {
-                font-size: 1.4rem;
-                font-weight: 700;
-                color: #1f2a37;
-                margin-bottom: 0.4rem;
-            }
-            .login-sub {
-                color: #5f6c7b;
-                margin-bottom: 1.2rem;
-            }
-            .logo-space {
-                margin-top: 1.6rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0.6rem 0 0.2rem 0;
+                padding: 1.6rem 2rem;
             }
         </style>
         """,
@@ -74,30 +79,25 @@ def check_password():
 
     left, center, right = st.columns([1, 2, 1])
     with center:
-        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
-        st.markdown('<div class="login-title">Acesso restrito</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="login-sub">Selecione o usuário e informe a senha.</div>',
-            unsafe_allow_html=True,
-        )
-        usuario = st.selectbox(
-            "Usuário",
-            ["Marcio Santana", "William Ferreira"],
-            index=0,
-        )
-        senha = st.text_input("Senha", type="password")
-        if st.button("Entrar", use_container_width=True):
-            if hmac.compare_digest(senha, app_password):
-                st.session_state.auth_ok = True
-                st.session_state.auth_user = usuario
-                st.rerun()
-            else:
-                st.error("Senha invalida.")
+        with st.container(border=False):
+            st.markdown("### Acesso restrito")
+            st.caption("Selecione o usuário e informe a senha.")
+            usuario = st.selectbox(
+                "Usuário",
+                ["Marcio Santana", "William Ferreira"],
+                index=0,
+            )
+            senha = st.text_input("Senha", type="password")
+            if st.button("Entrar", use_container_width=True):
+                if hmac.compare_digest(senha, app_password):
+                    st.session_state.auth_ok = True
+                    st.session_state.auth_user = usuario
+                    st.rerun()
+                else:
+                    st.error("Senha invalida.")
 
-        st.markdown('<div class="logo-space">', unsafe_allow_html=True)
-        st.image("assets/logo.png", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown(" ")
+            st.image("assets/logo.png", use_container_width=True)
     return False
 # =========================
 # App
@@ -138,7 +138,7 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.title("🖥️ Controle de Inventário de Equipamentos de TI")
+    st.title("🖥️ Controle e Inventário de Equipamentos da TI")
     services.init_db()
 
     abas = st.tabs(
@@ -173,7 +173,11 @@ def main():
             status=filtro_status,
         )
         equipamentos_view = [
-            {**e, "ativo": "Sim" if e.get("ativo") else "NÃ£o"} for e in equipamentos
+            {
+                **{k: v for k, v in e.items() if k != "ativo"},
+                "data_criacao": formatar_data_iso(e.get("data_criacao")),
+            }
+            for e in equipamentos
         ]
 
         # ---------- MÉTRICAS ----------
@@ -320,19 +324,19 @@ def main():
                     tipo = st.selectbox(
                         "Tipo",
                         [
-                            "Entrada",
                             "Transferência",
                             "Quebra",
                             "Manutenção",
-                            "Baixa",
                             "Devolução",
-                            "Retorno",
                         ],
                     )
 
                 observacao = st.text_input("Observação")
                 novo_setor = (
                     st.text_input("Novo setor") if tipo == "Transferência" else ""
+                )
+                nova_localizacao = (
+                    st.text_input("Nova localização") if tipo == "Transferência" else ""
                 )
 
                 enviado = st.form_submit_button(
@@ -346,6 +350,7 @@ def main():
                         1,
                         observacao,
                         novo_setor=novo_setor,
+                        nova_localizacao=nova_localizacao,
                     )
                     if ok: 
                         st.success(msg)
@@ -355,8 +360,12 @@ def main():
                     
 
         st.subheader("📜 Últimas movimentações")
+        movimentacoes_view = [
+            {k: v for k, v in m.items() if k != "quantidade"}
+            for m in services.listar_movimentacoes(limite=200)
+        ]
         st.dataframe(
-            services.listar_movimentacoes(limite=200),
+            movimentacoes_view,
             use_container_width=True,
             hide_index=True,
         )

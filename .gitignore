@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+
+# Streamlit secrets (never commit)
+.streamlit/secrets.toml
+
+# Local SQLite database
+estoque.db
