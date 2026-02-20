@@ -161,6 +161,20 @@ body {
   margin-bottom: 10px;
 }
 
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sound-toggle {
+  padding: 8px 14px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .panel-title h2 {
   margin: 0;
   font-family: "Fraunces", "Times New Roman", serif;

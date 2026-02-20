@@ -4,6 +4,36 @@ async function fetchHistory() {
 }
 
 let lastHistorySignature = "";
+let lastCurrentId = null;
+let soundEnabled = false;
+let audioContext = null;
+
+function playChime() {
+  if (!soundEnabled) {
+    return;
+  }
+
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.value = 880;
+  gainNode.gain.value = 0.0001;
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  const now = audioContext.currentTime;
+  gainNode.gain.exponentialRampToValueAtTime(0.3, now + 0.03);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+  oscillator.start(now);
+  oscillator.stop(now + 1.25);
+}
 
 function renderPanel(history) {
   const current = history[0] || null;
@@ -63,10 +93,25 @@ async function refreshPanel() {
     return;
   }
   lastHistorySignature = signature;
+  const currentId = history[0] ? history[0].id : null;
+  if (currentId && lastCurrentId && currentId !== lastCurrentId) {
+    playChime();
+  }
+  lastCurrentId = currentId;
   renderPanel(history);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const soundToggle = document.getElementById("sound-toggle");
+  if (soundToggle) {
+    soundToggle.addEventListener("click", async () => {
+      soundEnabled = !soundEnabled;
+      soundToggle.textContent = soundEnabled ? "Som: Ligado" : "Som: Desligado";
+      if (soundEnabled && audioContext && audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+    });
+  }
   refreshPanel();
   connectSocket(refreshPanel);
   setInterval(refreshPanel, 5000);
