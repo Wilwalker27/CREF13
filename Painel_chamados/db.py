@@ -25,13 +25,21 @@ def init_db():
                 registration TEXT NOT NULL,
                 status TEXT NOT NULL,
                 destination TEXT,
+                priority INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 called_at TEXT
             )
             """
         )
+        _ensure_priority_column(conn)
         conn.commit()
+
+
+def _ensure_priority_column(conn):
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(calls)").fetchall()]
+    if "priority" not in columns:
+        conn.execute("ALTER TABLE calls ADD COLUMN priority INTEGER DEFAULT 0")
 
 
 def _row_to_dict(row):
@@ -40,30 +48,30 @@ def _row_to_dict(row):
     return {key: row[key] for key in row.keys()}
 
 
-def create_call(name, registration):
+def create_call(name, registration, priority=False):
     now = _now()
     with get_connection() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO calls (name, registration, status, destination, created_at, updated_at)
-            VALUES (?, ?, 'waiting', NULL, ?, ?)
+            INSERT INTO calls (name, registration, status, destination, priority, created_at, updated_at)
+            VALUES (?, ?, 'waiting', NULL, ?, ?, ?)
             """,
-            (name.strip(), registration.strip(), now, now),
+            (name.strip(), registration.strip(), int(bool(priority)), now, now),
         )
         conn.commit()
         return cursor.lastrowid
 
 
-def update_call(call_id, name, registration):
+def update_call(call_id, name, registration, priority=False):
     now = _now()
     with get_connection() as conn:
         cursor = conn.execute(
             """
             UPDATE calls
-            SET name = ?, registration = ?, updated_at = ?
+            SET name = ?, registration = ?, priority = ?, updated_at = ?
             WHERE id = ?
             """,
-            (name.strip(), registration.strip(), now, call_id),
+            (name.strip(), registration.strip(), int(bool(priority)), now, call_id),
         )
         conn.commit()
         return cursor.rowcount
@@ -84,13 +92,26 @@ def dispatch_call(call_id, destination):
         return cursor.rowcount
 
 
+def delete_waiting_call(call_id):
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            DELETE FROM calls
+            WHERE id = ? AND status = 'waiting'
+            """,
+            (call_id,),
+        )
+        conn.commit()
+        return cursor.rowcount
+
+
 def list_waiting():
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT * FROM calls
             WHERE status = 'waiting'
-            ORDER BY created_at ASC
+            ORDER BY priority DESC, created_at ASC
             """
         ).fetchall()
     return [_row_to_dict(row) for row in rows]

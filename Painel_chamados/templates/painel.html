@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block head %}
-<script src="/static/panel.js" defer></script>
+<script src="{{ request.url_for('static', path='panel.js') }}?v={{ asset_versions.panel if asset_versions is defined else 0 }}" defer></script>
 {% endblock %}
 {% block content %}
 <section class="panel-hero card">
@@ -26,7 +26,7 @@
     <div class="panel-history">
       <div class="panel-title">
         <span class="eyebrow">Ultimas chamadas</span>
-        <h2>Histódrico recente</h2>
+        <h2>Histórico recente</h2>
       </div>
       <div id="history-list" class="history-list"></div>
     </div>

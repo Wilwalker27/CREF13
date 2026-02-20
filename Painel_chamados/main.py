@@ -6,9 +6,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from . import db
+try:
+    from . import db
+except ImportError:
+    import db
 
 HISTORY_LIMIT = 5
+DESTINATIONS = [
+	"Recursos Humanos",
+	"Auditório",
+	"Retornar para recepção",
+	"Sala de negociação",
+]
 
 app = FastAPI()
 BASE_DIR = os.path.dirname(__file__)
@@ -17,9 +26,28 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 app.mount("/img", StaticFiles(directory=os.path.join(BASE_DIR, "img")), name="img")
 
 
+def render_page(request: Request, template_name: str, title: str):
+	asset_files = {
+		"styles": "styles.css",
+		"common": "common.js",
+		"panel": "panel.js",
+		"reception": "reception.js",
+		"negotiation": "negotiation.js",
+	}
+	asset_versions = {
+		key: int(os.path.getmtime(os.path.join(BASE_DIR, "static", file_name)))
+		for key, file_name in asset_files.items()
+	}
+	return templates.TemplateResponse(
+		template_name,
+		{"request": request, "title": title, "asset_versions": asset_versions},
+	)
+
+
 class RegisterRequest(BaseModel):
 	name: str = Field(min_length=2, max_length=120)
 	registration: str = Field(min_length=2, max_length=40)
+	priority: bool = False
 
 
 class DispatchRequest(BaseModel):
@@ -60,23 +88,22 @@ def root():
 
 @app.get("/painel")
 def panel(request: Request):
-	return templates.TemplateResponse(
-		"painel.html", {"request": request, "title": "Painel de Chamados"}
-	)
+	return render_page(request, "painel.html", "Painel de Chamados")
 
 
 @app.get("/recepcao")
 def reception(request: Request):
-	return templates.TemplateResponse(
-		"recepcao.html", {"request": request, "title": "Recepção"}
-	)
+	return render_page(request, "recepcao.html", "Recepção")
+
+
+@app.get("/atendimento")
+def negotiation(request: Request):
+	return render_page(request, "atendimento.html", "Atendimento")
 
 
 @app.get("/negociacao")
-def negotiation(request: Request):
-	return templates.TemplateResponse(
-		"negociacao.html", {"request": request, "title": "Negociação"}
-	)
+def negotiation_redirect():
+	return RedirectResponse(url="/atendimento")
 
 
 @app.get("/api/queue")
@@ -89,16 +116,21 @@ def api_history():
 	return db.list_history(HISTORY_LIMIT)
 
 
+@app.get("/api/destinations")
+def api_destinations():
+	return DESTINATIONS
+
+
 @app.post("/api/register")
 async def api_register(payload: RegisterRequest):
-	call_id = db.create_call(payload.name, payload.registration)
+	call_id = db.create_call(payload.name, payload.registration, payload.priority)
 	await manager.broadcast({"type": "refresh"})
 	return {"id": call_id}
 
 
 @app.post("/api/edit/{call_id}")
 async def api_edit(call_id: int, payload: RegisterRequest):
-	updated = db.update_call(call_id, payload.name, payload.registration)
+	updated = db.update_call(call_id, payload.name, payload.registration, payload.priority)
 	if updated == 0:
 		raise HTTPException(status_code=404, detail="Registro não encontrado")
 	await manager.broadcast({"type": "refresh"})
@@ -109,6 +141,15 @@ async def api_edit(call_id: int, payload: RegisterRequest):
 async def api_dispatch(call_id: int, payload: DispatchRequest):
 	updated = db.dispatch_call(call_id, payload.destination)
 	if updated == 0:
+		raise HTTPException(status_code=404, detail="Registro não encontrado")
+	await manager.broadcast({"type": "refresh"})
+	return {"status": "ok"}
+
+
+@app.delete("/api/queue/{call_id}")
+async def api_delete_waiting(call_id: int):
+	deleted = db.delete_waiting_call(call_id)
+	if deleted == 0:
 		raise HTTPException(status_code=404, detail="Registro não encontrado")
 	await manager.broadcast({"type": "refresh"})
 	return {"status": "ok"}

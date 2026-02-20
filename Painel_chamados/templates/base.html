@@ -4,8 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-    <script src="/static/common.js" defer></script>
+    <link rel="icon" type="image/png" href="/img/logocref.png" />
+    <link rel="stylesheet" href="{{ request.url_for('static', path='styles.css') }}?v={{ asset_versions.styles if asset_versions is defined else 0 }}" />
+    <script src="{{ request.url_for('static', path='common.js') }}?v={{ asset_versions.common if asset_versions is defined else 0 }}" defer></script>
     {% block head %}{% endblock %}
   </head>
   <body>

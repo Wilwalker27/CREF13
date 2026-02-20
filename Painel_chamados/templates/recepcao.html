@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block head %}
-<script src="/static/reception.js" defer></script>
+<script src="{{ request.url_for('static', path='reception.js') }}?v={{ asset_versions.reception if asset_versions is defined else 0 }}" defer></script>
 {% endblock %}
 {% block content %}
-<section class="page-grid">
-  <div class="card1">
+<section class="reception-shell">
+  <div class="card reception-card">
     <div class="section-head">
       <span class="eyebrow">Recepção</span>
       <h2>Novo atendimento</h2>
       <p>Cadastre o profissional para entrar na fila de chamada.</p>
     </div>
-    <form id="reception-form" class="form-grid">
+    <form id="reception-form" class="reception-form">
       <div>
         <label for="name">Nome</label>
         <input id="name" name="name" type="text" required />
@@ -19,6 +19,10 @@
         <label for="registration">Registro</label>
         <input id="registration" name="registration" type="text" required />
       </div>
+      <div class="priority-field">
+        <input id="priority" name="priority" type="checkbox" />
+        <label for="priority">Prioridade</label>
+      </div>
       <div class="form-actions">
         <button id="submit-btn" type="submit">Cadastrar</button>
         <button id="cancel-btn" type="button" class="button-secondary">Cancelar</button>
@@ -26,7 +30,7 @@
     </form>
   </div>
 
-  <div class="card">
+  <div class="card reception-queue-card">
     <div class="section-head">
       <span class="eyebrow">Fila</span>
       <h2>Aguardando</h2>

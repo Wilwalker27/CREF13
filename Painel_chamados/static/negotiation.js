@@ -1,13 +1,32 @@
-const destinations = [
-  "Sala 1",
-  "Sala 2",
-  "Voltar para recepcao",
-  "Sala de negociacao",
+const fallbackDestinations = [
+  "Recursos Humanos",
+  "Auditório",
+  "Retornar para recepção",
+  "Sala de negociação",
 ];
+
+let destinations = [...fallbackDestinations];
 
 async function fetchQueue() {
   const response = await fetch("/api/queue");
   return response.json();
+}
+
+let lastQueueSignature = "";
+
+async function fetchDestinations() {
+  try {
+    const response = await fetch("/api/destinations");
+    if (!response.ok) {
+      return;
+    }
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      destinations = data;
+    }
+  } catch (_) {
+    destinations = [...fallbackDestinations];
+  }
 }
 
 function createSelect() {
@@ -39,6 +58,7 @@ function renderQueue(queue) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ destination: select.value }),
       });
+      refreshQueue();
     });
 
     row.innerHTML = `
@@ -48,6 +68,14 @@ function renderQueue(queue) {
       </div>
       <div class="meta">Aguardando</div>
     `;
+
+    if (item.priority) {
+      const meta = row.querySelector(".meta");
+      const badge = document.createElement("span");
+      badge.className = "priority-badge";
+      badge.textContent = "Prioridade";
+      meta.appendChild(badge);
+    }
 
     const actionWrap = document.createElement("div");
     actionWrap.appendChild(select);
@@ -62,10 +90,16 @@ function renderQueue(queue) {
 
 async function refreshQueue() {
   const queue = await fetchQueue();
+  const signature = JSON.stringify(queue);
+  if (signature === lastQueueSignature) {
+    return;
+  }
+  lastQueueSignature = signature;
   renderQueue(queue);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  refreshQueue();
+  fetchDestinations().then(refreshQueue);
   connectSocket(refreshQueue);
+  setInterval(refreshQueue, 5000);
 });
