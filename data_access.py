@@ -1,14 +1,18 @@
 import sqlite3
+import os
+from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from contextlib import closing
 
 
-DB_PATH = "estoque.db"
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = Path(os.getenv("ESTOQUE_DB_PATH", str(BASE_DIR / "estoque.db"))).resolve()
 
 
 def get_conn():
-	conn = sqlite3.connect(DB_PATH)
+	DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+	conn = sqlite3.connect(str(DB_PATH), timeout=30)
 	conn.row_factory = sqlite3.Row
 	return conn
 

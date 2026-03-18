@@ -41,6 +41,8 @@ def cadastrar_equipamento(equipamento, tombo, localizacao, setor):
 		return True, "Equipamento cadastrado."
 	except sqlite3.IntegrityError:
 		return False, "Tombo já existe."
+	except sqlite3.Error as e:
+		return False, f"Erro ao salvar no banco: {e}"
 
 
 def atualizar_equipamento(equipamento_id, equipamento, localizacao, setor, status):
