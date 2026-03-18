@@ -6,6 +6,7 @@ import hmac
 from datetime import datetime
 from io import StringIO
 from zoneinfo import ZoneInfo
+import pandas as pd
 
 # =========================
 # Funções auxiliares
@@ -34,6 +35,9 @@ def formatar_data_iso(valor):
         return local.strftime("%d/%m/%Y %H:%M")
     except Exception:
         return valor
+
+def exibir_tombo(valor):
+    return valor if valor else "S/N"
 
 def check_password():
     if "auth_ok" not in st.session_state:
@@ -128,10 +132,24 @@ def main():
             h1, h2, h3 {
                 font-weight: 600;
             }
+            :root {
+                --metric-bg: #f8f9fa;
+                --metric-border: #e6e9ef;
+                --metric-text: #0f172a;
+            }
+            [data-theme="dark"] {
+                --metric-bg: #1f2937;
+                --metric-border: #334155;
+                --metric-text: #e5e7eb;
+            }
             div[data-testid="stMetric"] {
-                background-color: #f8f9fa;
+                background-color: var(--metric-bg);
+                border: 1px solid var(--metric-border);
                 padding: 1rem;
                 border-radius: 10px;
+            }
+            div[data-testid="stMetric"] * {
+                color: var(--metric-text) !important;
             }
         </style>
         """,
@@ -175,6 +193,7 @@ def main():
         equipamentos_view = [
             {
                 **{k: v for k, v in e.items() if k != "ativo"},
+                "tombo": exibir_tombo(e.get("tombo")),
                 "data_criacao": formatar_data_iso(e.get("data_criacao")),
             }
             for e in equipamentos
@@ -243,7 +262,7 @@ def main():
                 st.subheader("✏️ Atualizar ou baixar equipamento")
 
                 mapa_equip = {
-                    f"{e['equipamento']} ({e['tombo']})": e
+                    f"{e['equipamento']} ({exibir_tombo(e.get('tombo'))})": e
                     for e in equipamentos
                 }
                 escolha = st.selectbox(
@@ -312,7 +331,7 @@ def main():
             st.info("Cadastre um equipamento para começar.")
         else:
             mapa_equip = {
-                f"{e['equipamento']} ({e['tombo']})": e
+                f"{e['equipamento']} ({exibir_tombo(e.get('tombo'))})": e
                 for e in equipamentos_todos
             }
 
@@ -361,7 +380,10 @@ def main():
 
         st.subheader("📜 Últimas movimentações")
         movimentacoes_view = [
-            {k: v for k, v in m.items() if k != "quantidade"}
+            {
+                **{k: v for k, v in m.items() if k != "quantidade"},
+                "tombo": exibir_tombo(m.get("tombo")),
+            }
             for m in services.listar_movimentacoes(limite=200)
         ]
         st.dataframe(
@@ -379,12 +401,26 @@ def main():
         contagem_setor = services.contar_por_setor()
         st.dataframe(contagem_setor, use_container_width=True, hide_index=True)
 
+        st.subheader("📈 Panorama geral por status")
+        equipamentos_todos = services.listar_equipamentos(ativo_apenas=False)
+        status_base = ["Ativo", "Em manutenção", "Quebrado", "Baixado", "Devolvido"]
+        contagem_map = {status: 0 for status in status_base}
+        for e in equipamentos_todos:
+            status = e.get("status") or "Ativo"
+            contagem_map[status] = contagem_map.get(status, 0) + 1
+        dados_status = [
+            {"Status": status, "Total": contagem_map.get(status, 0)}
+            for status in status_base
+        ]
+        df_status = pd.DataFrame(dados_status)
+        st.bar_chart(df_status, x="Status", y="Total", height=320)
+
         st.subheader("📤 Exportar relatórios")
 
         relatorio_equipamentos = [
             {
                 "Equipamento": e["equipamento"],
-                "Tombo": e["tombo"],
+                "Tombo": exibir_tombo(e.get("tombo")),
                 "Setor": e.get("setor") or "",
                 "Localização": e.get("localizacao") or "",
                 "Status": e.get("status") or "Ativo",
@@ -397,7 +433,7 @@ def main():
         relatorio_movimentacoes = [
             {
                 "Equipamento": m["equipamento"],
-                "Tombo": m["tombo"],
+                "Tombo": exibir_tombo(m.get("tombo")),
                 "Tipo": m["tipo"],
                 "Quantidade": m["quantidade"],
                 "Setor origem": m.get("setor_origem") or "",

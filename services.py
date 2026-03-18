@@ -28,15 +28,17 @@ def listar_movimentacoes(limite=200):
 
 
 def cadastrar_equipamento(equipamento, tombo, localizacao, setor):
-	if not equipamento.strip() or not tombo.strip():
-		return False, "Informe equipamento e tombo."
+	if not equipamento.strip():
+		return False, "Informe o equipamento."
+	tombo_limpo = tombo.strip()
+	tombo_valor = tombo_limpo if tombo_limpo else None
 	try:
 		data_access.execute(
 			"""
 			INSERT INTO equipamentos (equipamento, tombo, localizacao, setor)
 			VALUES (?, ?, ?, ?)
 			""",
-			[equipamento.strip(), tombo.strip(), localizacao.strip(), setor.strip()],	
+			[equipamento.strip(), tombo_valor, localizacao.strip(), setor.strip()],	
 		)
 		return True, "Equipamento cadastrado."
 	except sqlite3.IntegrityError:

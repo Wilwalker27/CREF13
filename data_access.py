@@ -28,7 +28,7 @@ def init_db():
 				CREATE TABLE IF NOT EXISTS equipamentos (
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
 					equipamento TEXT NOT NULL,
-					tombo TEXT NOT NULL,
+					tombo TEXT,
 					setor TEXT,
 					localizacao TEXT,
 					status TEXT DEFAULT 'Ativo',
@@ -55,11 +55,40 @@ def init_db():
 				)
 				"""
 			)
-			columns = [row["name"] for row in conn.execute("PRAGMA table_info(equipamentos)")]
+			columns_info = list(conn.execute("PRAGMA table_info(equipamentos)"))
+			columns = [row["name"] for row in columns_info]
 			if "localizacao" not in columns:
 				conn.execute("ALTER TABLE equipamentos ADD COLUMN localizacao TEXT")
 			if "status" not in columns:
 				conn.execute("ALTER TABLE equipamentos ADD COLUMN status TEXT DEFAULT 'Ativo'")
+			tombo_info = next((row for row in columns_info if row["name"] == "tombo"), None)
+			if tombo_info and tombo_info["notnull"] == 1:
+				conn.execute("ALTER TABLE equipamentos RENAME TO equipamentos_old")
+				conn.execute(
+					"""
+					CREATE TABLE equipamentos (
+						id INTEGER PRIMARY KEY AUTOINCREMENT,
+						equipamento TEXT NOT NULL,
+						tombo TEXT,
+						setor TEXT,
+						localizacao TEXT,
+						status TEXT DEFAULT 'Ativo',
+						ativo INTEGER DEFAULT 1,
+						data_criacao TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+					)
+					"""
+				)
+				conn.execute(
+					"""
+					INSERT INTO equipamentos (id, equipamento, tombo, setor, localizacao, status, ativo, data_criacao)
+					SELECT id, equipamento, NULLIF(tombo, ''), setor, localizacao, status, ativo, data_criacao
+					FROM equipamentos_old
+					"""
+				)
+				conn.execute("DROP TABLE equipamentos_old")
+				conn.execute(
+					"CREATE UNIQUE INDEX IF NOT EXISTS idx_tombo ON equipamentos (tombo)"
+				)
 			conn.execute("UPDATE equipamentos SET status = 'Ativo' WHERE status IS NULL OR status = ''")
 
 			columns_mov = [row["name"] for row in conn.execute("PRAGMA table_info(movimentacoes)")]
@@ -94,7 +123,7 @@ def get_equipamentos(ativo_apenas=True, setor=None, busca=None, status=None):
 		where_clauses.append("COALESCE(status, 'Ativo') = ?")
 		params.append(status)
 	if busca:
-		where_clauses.append("(equipamento LIKE ? OR tombo LIKE ?)")
+		where_clauses.append("(equipamento LIKE ? OR COALESCE(tombo, '') LIKE ?)")
 		params.extend([f"%{busca}%", f"%{busca}%"])
 	where = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 	return fetch_all(
